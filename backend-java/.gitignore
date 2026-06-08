@@ -43,3 +43,9 @@ target/
 *.class
 .idea/
 *.iml
+
+.idea/
+.mvn/
+target/
+.env
+node_modules/
