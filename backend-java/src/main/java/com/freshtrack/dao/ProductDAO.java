@@ -3,8 +3,8 @@ package com.freshtrack.dao;
 import com.freshtrack.model.Product;
 import com.freshtrack.util.DBConfig;
 import java.sql.*;
-import java.util.ArrayList; // Naya import
-import java.util.List;      // Naya import
+import java.util.ArrayList; 
+import java.util.List;     
 
 public class ProductDAO {
     //old product add
