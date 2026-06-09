@@ -1,0 +1,120 @@
+import axios from 'axios';
+
+// Create axios instance with base configuration
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor for adding auth tokens or custom headers
+api.interceptors.request.use(
+  (config) => {
+    // Add authorization token if available
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for handling errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      // Server responded with error status
+      console.error('API Error:', error.response.status, error.response.data);
+    } else if (error.request) {
+      // Request made but no response
+      console.error('No response received:', error.request);
+    } else {
+      // Error in request setup
+      console.error('Error:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Fetch all products from the backend
+ * @returns {Promise} Array of products
+ */
+export const getProducts = async () => {
+  try {
+    const response = await api.get('/products');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch products:', error.message);
+    throw new Error(`Failed to fetch products: ${error.message}`);
+  }
+};
+
+/**
+ * Fetch a single product by ID
+ * @param {number} productId - Product ID
+ * @returns {Promise} Product object
+ */
+export const getProductById = async (productId) => {
+  try {
+    const response = await api.get(`/products/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch product ${productId}:`, error.message);
+    throw new Error(`Failed to fetch product: ${error.message}`);
+  }
+};
+
+/**
+ * Create a new product
+ * @param {Object} productData - Product data
+ * @returns {Promise} Created product object
+ */
+export const createProduct = async (productData) => {
+  try {
+    const response = await api.post('/products', productData);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to create product:', error.message);
+    throw new Error(`Failed to create product: ${error.message}`);
+  }
+};
+
+/**
+ * Update an existing product
+ * @param {number} productId - Product ID
+ * @param {Object} productData - Updated product data
+ * @returns {Promise} Updated product object
+ */
+export const updateProduct = async (productId, productData) => {
+  try {
+    const response = await api.put(`/products/${productId}`, productData);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to update product ${productId}:`, error.message);
+    throw new Error(`Failed to update product: ${error.message}`);
+  }
+};
+
+/**
+ * Delete a product
+ * @param {number} productId - Product ID
+ * @returns {Promise} Response from server
+ */
+export const deleteProduct = async (productId) => {
+  try {
+    const response = await api.delete(`/products/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to delete product ${productId}:`, error.message);
+    throw new Error(`Failed to delete product: ${error.message}`);
+  }
+};
+
+export default api;
