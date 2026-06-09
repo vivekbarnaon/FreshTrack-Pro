@@ -11,6 +11,10 @@ public class Product {
     private LocalDate expiryDate;
     private int stockQuantity;
 
+    public Product() {
+    }
+    // --------------------------------------------------
+
 
     public Product(String name, String category, double basePrice, LocalDate expiryDate, int stockQuantity) {
         this.name = name;
@@ -21,19 +25,18 @@ public class Product {
         this.discountedPrice = basePrice;
     }
 
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
     public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
     public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
     public double getBasePrice() { return basePrice; }
+    public void setBasePrice(double basePrice) { this.basePrice = basePrice; }
     public double getDiscountedPrice() { return discountedPrice; }
     public void setDiscountedPrice(double discountedPrice) { this.discountedPrice = discountedPrice; }
     public LocalDate getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
     public int getStockQuantity() { return stockQuantity; }
+    public void setStockQuantity(int stockQuantity) { this.stockQuantity = stockQuantity; }
 }
