@@ -29,3 +29,8 @@ replay_pid*
 target/
 .env
 node_modules/
+
+# Editor files and temp docs
+.vscode/
+FRONTEND_ENHANCEMENTS.md
+UI_FEATURES_SUMMARY.txt
