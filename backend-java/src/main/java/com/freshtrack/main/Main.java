@@ -1,7 +1,11 @@
 package com.freshtrack.main;
 
+import com.freshtrack.dao.CartDAO;
 import com.freshtrack.dao.ProductDAO;
+import com.freshtrack.dao.UserDAO;
+import com.freshtrack.model.CartItem;
 import com.freshtrack.model.Product;
+import com.freshtrack.model.User;
 import com.freshtrack.service.ExpiryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -9,11 +13,19 @@ import io.javalin.Javalin;
 import io.javalin.json.JsonMapper;
 import java.lang.reflect.Type;
 import java.util.List;
+import com.freshtrack.util.DBConfig;
+import java.sql.Connection;
+import java.sql.Statement;
+import java.sql.SQLException;
 
 public class Main {
     public static void main(String[] args) {
+        initializeDatabase();
+
         ProductDAO dao = new ProductDAO();
         ExpiryService service = new ExpiryService();
+        UserDAO userDAO = new UserDAO();
+        CartDAO cartDAO = new CartDAO();
 
         ObjectMapper objectMapper = new ObjectMapper();
         JavaTimeModule timeModule = new JavaTimeModule();
@@ -40,6 +52,13 @@ public class Main {
                 }
             });
         }).start(8000);
+
+        // Global Exception Handler to capture backend issues and respond descriptively
+        app.exception(Exception.class, (e, ctx) -> {
+            System.err.println(">>> Server Exception caught: " + e.getMessage());
+            e.printStackTrace();
+            ctx.status(500).result("Server Error: " + e.getMessage());
+        });
 
         //  GET ALL
         app.get("/api/products", ctx -> {
@@ -75,6 +94,66 @@ public class Main {
             ctx.status(204);
         });
 
+        // 2. REGISTER API (create  a new user)
+        app.post("/api/register", ctx -> {
+            User user = ctx.bodyAsClass(User.class);
+            userDAO.registerUser(user);
+            ctx.status(201).result("User Registered successfully");
+        });
+
+        // 3. LOGIN API (Email aur Password check)
+        app.post("/api/login", ctx -> {
+            User credentials = ctx.bodyAsClass(User.class);
+            User user = userDAO.loginUser(credentials.getEmail(), credentials.getPassword());
+
+            if (user != null) {
+                ctx.json(user);
+            } else {
+                ctx.status(401).result("Invalid Email or Password");
+            }
+        });
+
+
+
+
+        // 2. ADD TO CART API (React se product_id aur user_id lega)
+        app.post("/api/cart", ctx -> {
+            // React se hum ek JSON bhejenge { "userId": 1, "productId": 5 }
+            CartItem item = ctx.bodyAsClass(CartItem.class);
+            cartDAO.addToCart(item.getUserId(), item.getProductId());
+            ctx.status(201).result("Item added to Cart");
+        });
+
+        // 3. GET CART API (
+        app.get("/api/cart/{userId}", ctx -> {
+            int userId = Integer.parseInt(ctx.pathParam("userId"));
+            List<CartItem> userCart = cartDAO.getCartByUserId(userId);
+            ctx.json(userCart);
+        });
+
+
+
         System.out.println(">>> Backend Server is LIVE at http://localhost:8000/api/products");
+    }
+
+    private static void initializeDatabase() {
+        try (Connection conn = DBConfig.getConnection();
+             Statement stmt = conn.createStatement()) {
+            
+            // Create users table if it does not exist
+            String createUsersTable = "CREATE TABLE IF NOT EXISTS users (" +
+                    "id SERIAL PRIMARY KEY, " +
+                    "username VARCHAR(100) NOT NULL, " +
+                    "email VARCHAR(255) UNIQUE NOT NULL, " +
+                    "password VARCHAR(255) NOT NULL, " +
+                    "role VARCHAR(50) NOT NULL" +
+                    ")";
+            stmt.executeUpdate(createUsersTable);
+            System.out.println(">>> Database Check: 'users' table check/creation complete.");
+
+        } catch (SQLException e) {
+            System.err.println(">>> Database Check: Failed to initialize/verify database tables: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

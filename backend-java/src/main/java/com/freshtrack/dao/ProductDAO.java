@@ -9,7 +9,8 @@ import java.util.List;
 public class ProductDAO {
 
     public void addProduct(Product product) {
-        String sql = "INSERT INTO inventory (name, category, base_price, discounted_price, expiry_date, stock_quantity) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO inventory (name, category, base_price, discounted_price, expiry_date, stock_quantity, image_url) VALUES (?, ?, ?, ?, ?, ?,?)";
+
         try (Connection conn = DBConfig.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, product.getName());
@@ -18,6 +19,7 @@ public class ProductDAO {
             pstmt.setDouble(4, product.getDiscountedPrice());
             pstmt.setDate(5, Date.valueOf(product.getExpiryDate()));
             pstmt.setInt(6, product.getStockQuantity());
+            pstmt.setString(7, product.getImageUrl());
             pstmt.executeUpdate();
             System.out.println(">>> Success: Product '" + product.getName() + "' added!");
         } catch (SQLException e) { e.printStackTrace(); }
@@ -39,6 +41,7 @@ public class ProductDAO {
                 );
                 p.setId(rs.getInt("id"));
                 p.setDiscountedPrice(rs.getDouble("discounted_price"));
+                p.setImageUrl(rs.getString("image_url"));
                 productList.add(p);
             }
         } catch (SQLException e) { e.printStackTrace(); }
@@ -69,7 +72,7 @@ public class ProductDAO {
 
     //  Update Product
     public void updateProduct(Product p) {
-        String sql = "UPDATE inventory SET name=?, category=?, base_price=?, expiry_date=?, stock_quantity=? WHERE id=?";
+        String sql = "UPDATE inventory SET name=?, category=?, base_price=?, expiry_date=?, stock_quantity=?, image_url=? WHERE id=?";
         try (Connection conn = DBConfig.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, p.getName());
@@ -77,9 +80,12 @@ public class ProductDAO {
             pstmt.setDouble(3, p.getBasePrice());
             pstmt.setDate(4, Date.valueOf(p.getExpiryDate()));
             pstmt.setInt(5, p.getStockQuantity());
-            pstmt.setInt(6, p.getId());
+            pstmt.setString(6, p.getImageUrl());
+            pstmt.setInt(7, p.getId());
             pstmt.executeUpdate();
             System.out.println(">>> Product Updated, ID: " + p.getId());
         } catch (SQLException e) { e.printStackTrace(); }
     }
+
+
 }

@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { getProducts, createProduct, updateProduct, deleteProduct } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../utils/supabaseClient';
 
 /**
  * Inventory Management Page
  * Features: Table view, add/edit/delete products, bulk actions
  */
 const InventoryPage = () => {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     category: 'Dairy',
@@ -17,6 +21,7 @@ const InventoryPage = () => {
     discountedPrice: '',
     expiryDate: '',
     stockQuantity: '',
+    imageUrl: '',
   });
   const [filterCategory, setFilterCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,11 +79,57 @@ const InventoryPage = () => {
         discountedPrice: '',
         expiryDate: '',
         stockQuantity: '',
+        imageUrl: '',
       });
       fetchProductsData();
     } catch (err) {
       console.error('Error saving product:', err);
       alert('❌ Failed to save product');
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      // 1. Upload the image to product-images bucket
+      const { data, error } = await supabase
+        .storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // 2. Get the public URL of the uploaded image
+        const { data: urlData } = supabase
+          .storage
+          .from('product-images')
+          .getPublicUrl(data.path);
+
+        const publicUrl = urlData.publicUrl;
+        console.log("Uploaded successfully. Public URL:", publicUrl);
+
+        // 3. Save publicUrl to formData
+        setFormData((prev) => ({
+          ...prev,
+          imageUrl: publicUrl,
+        }));
+        alert("✅ Image uploaded successfully!");
+      }
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      alert("❌ Image upload failed: " + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -91,6 +142,7 @@ const InventoryPage = () => {
       discountedPrice: product.discountedPrice,
       expiryDate: product.expiryDate,
       stockQuantity: product.stockQuantity,
+      imageUrl: product.imageUrl || '',
     });
     setShowForm(true);
   };
@@ -119,6 +171,20 @@ const InventoryPage = () => {
       p.category.toLowerCase().includes(searchTerm.toLowerCase());
     return matchCategory && matchSearch;
   });
+
+  if (user?.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full border border-gray-100 animate-fadeIn">
+          <div className="text-6xl mb-4">🚫</div>
+          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-500 mb-6 text-sm">
+            Only administrators are authorized to access the inventory management workspace.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -154,6 +220,7 @@ const InventoryPage = () => {
                 discountedPrice: '',
                 expiryDate: '',
                 stockQuantity: '',
+                imageUrl: '',
               });
             }}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transition-all"
@@ -228,6 +295,35 @@ const InventoryPage = () => {
                 required
                 className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
               />
+              <div className="md:col-span-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center hover:border-blue-500 transition-colors">
+                <label className="text-gray-700 font-semibold mb-2 cursor-pointer flex flex-col items-center">
+                  <span className="text-xl">📷</span>
+                  <span className="mt-1 text-sm text-blue-600 hover:text-blue-800 font-medium">Click to upload product image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+                {uploading && (
+                  <div className="flex items-center gap-2 text-blue-600 font-semibold text-sm">
+                    <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                    Uploading image...
+                  </div>
+                )}
+                {formData.imageUrl && !uploading && (
+                  <div className="mt-2 text-center">
+                    <p className="text-green-600 text-xs font-semibold">✓ Image uploaded successfully!</p>
+                    <img
+                      src={formData.imageUrl}
+                      alt="Preview"
+                      className="h-20 w-20 object-cover mt-2 mx-auto rounded border border-gray-200 shadow-sm"
+                    />
+                  </div>
+                )}
+              </div>
               <div className="md:col-span-2 flex gap-3">
                 <button
                   type="submit"

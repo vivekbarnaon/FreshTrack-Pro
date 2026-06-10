@@ -10,6 +10,7 @@ public class Product {
     private double discountedPrice;
     private LocalDate expiryDate;
     private int stockQuantity;
+    private String imageUrl;
 
     public Product() {
     }
@@ -39,4 +40,6 @@ public class Product {
     public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
     public int getStockQuantity() { return stockQuantity; }
     public void setStockQuantity(int stockQuantity) { this.stockQuantity = stockQuantity; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }
