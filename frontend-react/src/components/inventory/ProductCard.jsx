@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import { useAuth } from '../../context/AuthContext';
+import { addToCart } from '../../services/api';
 
 /**
  * Enhanced ProductCard Component - Premium grocery app style
@@ -8,6 +10,37 @@ import PropTypes from 'prop-types';
 const ProductCard = ({ product, onAddCart, onEdit, onDelete }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showQuickView, setShowQuickView] = useState(false);
+  const { user } = useAuth();
+  const [adding, setAdding] = useState(false);
+
+  const handleAddToCart = async () => {
+    if (!user) {
+      alert("Please login as a customer to add items to your cart.");
+      return;
+    }
+    const targetProductId = product.id || product.productId;
+    if (!targetProductId) {
+      console.error("Product ID is missing on product object: ", product);
+      return;
+    }
+    setAdding(true);
+    try {
+      const cartData = {
+        userId: user.id,
+        productId: targetProductId
+      };
+      await addToCart(cartData);
+      alert(`✅ ${name} added to cart successfully!`);
+      if (onAddCart) {
+        onAddCart(product);
+      }
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      alert(`❌ Failed to add to cart: ${err.message}`);
+    } finally {
+      setAdding(false);
+    }
+  };
 
   const {
     name,
@@ -16,8 +49,11 @@ const ProductCard = ({ product, onAddCart, onEdit, onDelete }) => {
     discountedPrice,
     expiryDate,
     stockQuantity = 0,
-    image = 'https://via.placeholder.com/200',
+    imageUrl,
+    image,
   } = product;
+
+  const displayImage = imageUrl || image || 'https://via.placeholder.com/200?text=Product';
 
   // Calculate discount percentage
   const discountPercentage = Math.round(
@@ -65,20 +101,18 @@ const ProductCard = ({ product, onAddCart, onEdit, onDelete }) => {
 
   return (
     <div
-      className={`relative bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 h-full flex flex-col group ${
-        isHovered ? 'shadow-2xl scale-105' : ''
-      } ${isExpired || isOutOfStock ? 'opacity-75' : ''}`}
+      className={`relative bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 h-full flex flex-col group ${isHovered ? 'shadow-2xl scale-105' : ''
+        } ${isExpired || isOutOfStock ? 'opacity-75' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Image Container with Overlay */}
       <div className="relative w-full h-48 bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden">
         <img
-          src={image}
+          src={displayImage}
           alt={name}
-          className={`w-full h-full object-cover transition-transform duration-500 ${
-            isHovered ? 'scale-110' : 'scale-100'
-          }`}
+          className={`w-full h-full object-cover transition-transform duration-500 ${isHovered ? 'scale-110' : 'scale-100'
+            }`}
           onError={(e) => {
             e.target.src = 'https://via.placeholder.com/200?text=Product';
           }}
@@ -176,13 +210,12 @@ const ProductCard = ({ product, onAddCart, onEdit, onDelete }) => {
 
         {/* Expiry Date Info */}
         <div
-          className={`p-2 rounded-lg text-sm font-semibold text-center mb-3 transition-colors ${
-            isExpired
+          className={`p-2 rounded-lg text-sm font-semibold text-center mb-3 transition-colors ${isExpired
               ? 'bg-red-100 text-red-700 border border-red-300'
               : isExpiringSoon
-              ? 'bg-orange-100 text-orange-700 border border-orange-300'
-              : 'bg-green-100 text-green-700 border border-green-300'
-          }`}
+                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                : 'bg-green-100 text-green-700 border border-green-300'
+            }`}
         >
           {isExpired ? '❌ Expired' : isExpiringSoon ? '⏰ Expires soon' : '✅ Fresh'}
           <div className="text-xs font-normal mt-1 opacity-80">
@@ -192,21 +225,38 @@ const ProductCard = ({ product, onAddCart, onEdit, onDelete }) => {
 
         {/* Action Buttons */}
         <div className="flex gap-2 mt-auto">
-          <button
-            disabled={isExpired || isOutOfStock}
-            onClick={() => onAddCart && onAddCart(product)}
-            className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all duration-300 text-sm ${
-              isExpired || isOutOfStock
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:scale-105 active:scale-95'
-            }`}
-          >
-            {isOutOfStock ? '❌ Out' : isExpired ? '🚫 Expired' : '🛒 Add'}
-          </button>
+          {user?.role === 'CUSTOMER' && (
+            <button
+              disabled={isExpired || isOutOfStock || adding}
+              onClick={handleAddToCart}
+              className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all duration-300 text-sm ${isExpired || isOutOfStock || adding
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg hover:scale-105 active:scale-95'
+                }`}
+            >
+              {adding ? (
+                <span className="flex items-center justify-center gap-1.5">
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  Adding...
+                </span>
+              ) : (
+                isOutOfStock ? '❌ Out' : isExpired ? '🚫 Expired' : '🛒 Add'
+              )}
+            </button>
+          )}
+
+          {onEdit && (
+            <button
+              onClick={() => onEdit(product)}
+              className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all text-sm text-center"
+            >
+              ✏️ Edit
+            </button>
+          )}
 
           {onDelete && (
             <button
-              onClick={() => onDelete(product.id)}
+              onClick={() => onDelete(product.id || product.productId)}
               className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors font-semibold text-sm"
               title="Delete product"
             >
@@ -236,7 +286,8 @@ const ProductCard = ({ product, onAddCart, onEdit, onDelete }) => {
 
 ProductCard.propTypes = {
   product: PropTypes.shape({
-    id: PropTypes.number.isRequired,
+    id: PropTypes.number,
+    productId: PropTypes.number,
     name: PropTypes.string.isRequired,
     category: PropTypes.string.isRequired,
     basePrice: PropTypes.number.isRequired,
@@ -249,5 +300,4 @@ ProductCard.propTypes = {
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
 };
-
 export default ProductCard;

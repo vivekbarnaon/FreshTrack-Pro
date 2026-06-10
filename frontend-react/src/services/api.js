@@ -117,4 +117,60 @@ export const deleteProduct = async (productId) => {
   }
 };
 
+// Register call
+export const registerUser = async (userData) => {
+  try {
+    const response = await api.post('/register', userData);
+    return response.data;
+  } catch (error) {
+    const message = error.response?.data || error.message;
+    console.error('Failed to register user:', message);
+    throw new Error(message);
+  }
+};
+
+// Login call
+export const loginUser = async (credentials) => {
+  try {
+    const response = await api.post('/login', credentials);
+    return response.data; // Includes user details and role
+  } catch (error) {
+    const message = error.response?.data || error.message;
+    console.error('Failed to login:', message);
+    throw new Error(message);
+  }
+};
+
+/**
+ * Add product to cart
+ * @param {Object} cartData - { userId, productId }
+ * @returns {Promise}
+ */
+export const addToCart = async (cartData) => {
+  try {
+    const response = await api.post('/cart', cartData);
+    return response.data;
+  } catch (error) {
+    const message = error.response?.data || error.message;
+    console.error('Failed to add to cart:', message);
+    throw new Error(message);
+  }
+};
+
+/**
+ * Get all cart items for user
+ * @param {number} userId
+ * @returns {Promise} List of cart items
+ */
+export const getCartItems = async (userId) => {
+  try {
+    const response = await api.get(`/cart/${userId}`);
+    return response.data;
+  } catch (error) {
+    const message = error.response?.data || error.message;
+    console.error(`Failed to get cart items for user ${userId}:`, message);
+    throw new Error(message);
+  }
+};
+
 export default api;
