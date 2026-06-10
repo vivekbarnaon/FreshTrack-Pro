@@ -120,13 +120,24 @@ export const deleteProduct = async (productId) => {
   }
 };
 
+// Helper to extract clean error message
+const getErrorMessage = (error) => {
+  if (error.response?.data) {
+    if (typeof error.response.data === 'object') {
+      return error.response.data.message || JSON.stringify(error.response.data);
+    }
+    return error.response.data;
+  }
+  return error.message;
+};
+
 // Register call
 export const registerUser = async (userData) => {
   try {
     const response = await api.post('/register', userData);
     return response.data;
   } catch (error) {
-    const message = error.response?.data || error.message;
+    const message = getErrorMessage(error);
     console.error('Failed to register user:', message);
     throw new Error(message);
   }
@@ -138,7 +149,7 @@ export const loginUser = async (credentials) => {
     const response = await api.post('/login', credentials);
     return response.data; // Includes user details and role
   } catch (error) {
-    const message = error.response?.data || error.message;
+    const message = getErrorMessage(error);
     console.error('Failed to login:', message);
     throw new Error(message);
   }
@@ -154,7 +165,7 @@ export const addToCart = async (cartData) => {
     const response = await api.post('/cart', cartData);
     return response.data;
   } catch (error) {
-    const message = error.response?.data || error.message;
+    const message = getErrorMessage(error);
     console.error('Failed to add to cart:', message);
     throw new Error(message);
   }
@@ -170,10 +181,11 @@ export const getCartItems = async (userId) => {
     const response = await api.get(`/cart/${userId}`);
     return response.data;
   } catch (error) {
-    const message = error.response?.data || error.message;
+    const message = getErrorMessage(error);
     console.error(`Failed to get cart items for user ${userId}:`, message);
     throw new Error(message);
   }
 };
 
 export default api;
+
