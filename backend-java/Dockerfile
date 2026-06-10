@@ -1,8 +1,15 @@
+# Stage 1: Build stage
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY pom.xml .
+# Cache dependencies (speeds up builds on Render)
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Stage 2: Runtime stage
 FROM eclipse-temurin:17-jdk-jammy
 WORKDIR /app
-
-# JAR file copy karna
-COPY target/*-jar-with-dependencies.jar app.jar
-
+COPY --from=builder /app/target/*-jar-with-dependencies.jar app.jar
 EXPOSE 8000
 ENTRYPOINT ["java", "-jar", "app.jar"]
