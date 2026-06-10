@@ -52,9 +52,10 @@ Tailored workspaces and permissions for two separate roles:
   - HikariCP (High-performance connection pooling)
   - Jackson (JSON serialization/deserialization)
 
-- **Database & Storage:**
+- **Database, Storage & Deployment:**
   - Supabase (Hosted PostgreSQL)
   - Supabase Storage (S3-compatible bucket storage for images)
+  - Docker (Containerization for secure and seamless cloud deployment)
 
 ---
 
@@ -110,10 +111,20 @@ VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_PUBLIC_KEY
 
 ## 💻 Running the Project
 
-### Start the Java Backend:
+### Start the Java Backend (Locally):
 Navigate to the `backend-java` folder:
 ```bash
 mvn compile exec:java -Dexec.mainClass="com.freshtrack.main.Main"
+```
+
+### Start the Java Backend (With Docker):
+Navigate to the `backend-java` folder:
+```bash
+# Build the Docker Image (runs Maven build inside container)
+docker build -t backend-java .
+
+# Run the Container passing your local .env configuration
+docker run --env-file .env -p 8000:8000 backend-java
 ```
 
 ### Start the React Frontend:
