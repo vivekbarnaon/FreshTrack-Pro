@@ -8,4 +8,7 @@ if (!supabaseAnonKey) {
   console.warn("⚠️ Warning: Supabase Anon Key is missing. Image uploads will not work until you define VITE_SUPABASE_ANON_KEY in your .env file.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+

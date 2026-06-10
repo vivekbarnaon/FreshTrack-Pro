@@ -92,7 +92,13 @@ const InventoryPage = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!supabase) {
+      alert("❌ Image upload is not configured on this environment (missing VITE_SUPABASE_ANON_KEY).");
+      return;
+    }
+
     setUploading(true);
+
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
