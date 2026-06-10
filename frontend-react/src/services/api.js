@@ -1,7 +1,12 @@
 import axios from 'axios';
 
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://freshtrack-pro.onrender.com/api';
+let BASE_URL = import.meta.env.VITE_API_URL || 'https://freshtrack-pro.onrender.com/api';
+
+// Defensive check to ensure URL always ends with /api
+if (!BASE_URL.endsWith('/api') && !BASE_URL.endsWith('/api/')) {
+  BASE_URL = BASE_URL.replace(/\/$/, '') + '/api';
+}
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -10,6 +15,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
 // ------------------------
 
 // Request interceptor for adding auth tokens or custom headers
