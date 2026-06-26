@@ -147,15 +147,17 @@ const Header = ({ cartCount = 0, onSearch, onNavigate }) => {
                       </button>
                     </>
                   )}
-                  <button
-                    onClick={() => {
-                      onNavigate && onNavigate('settings');
-                      setIsMenuOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors text-sm font-semibold"
-                  >
-                    ⚙️ Settings
-                  </button>
+                  {user?.role === 'ADMIN' && (
+                    <button
+                      onClick={() => {
+                        onNavigate && onNavigate('settings');
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors text-sm font-semibold"
+                    >
+                      ⚙️ Settings
+                    </button>
+                  )}
                   <hr className="my-2" />
                   <button 
                     onClick={() => {
