@@ -209,5 +209,37 @@ export const processCheckout = async (orderData) => {
   }
 };
 
+/**
+ * Create a Razorpay Order on the backend
+ * @param {number} amount - Amount in INR
+ * @returns {Promise} { id, keyId, mock }
+ */
+export const createRazorpayOrder = async (amount) => {
+  try {
+    const response = await api.post('/create-order', { amount });
+    return response.data;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error('Failed to create Razorpay Order:', message);
+    throw new Error(message);
+  }
+};
+
+/**
+ * Verify Razorpay payment and place the order
+ * @param {Object} verificationData - { orderId, paymentId, signature, order }
+ * @returns {Promise} Response string/data
+ */
+export const verifyRazorpayPayment = async (verificationData) => {
+  try {
+    const response = await api.post('/verify-payment', verificationData);
+    return response.data;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error('Payment verification failed:', message);
+    throw new Error(message);
+  }
+};
+
 export default api;
 

@@ -9,6 +9,7 @@ import com.freshtrack.model.Order;
 import com.freshtrack.model.Product;
 import com.freshtrack.model.User;
 import com.freshtrack.service.ExpiryService;
+import com.freshtrack.service.PaymentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.javalin.Javalin;
@@ -29,6 +30,7 @@ public class Main {
         UserDAO userDAO = new UserDAO();
         CartDAO cartDAO = new CartDAO();
         OrderDAO orderDAO = new OrderDAO();
+        PaymentService paymentService = new PaymentService();
 
         ObjectMapper objectMapper = new ObjectMapper();
         JavaTimeModule timeModule = new JavaTimeModule();
@@ -145,6 +147,44 @@ public class Main {
             }
         });
 
+        // 5. CREATE RAZORPAY ORDER API
+        app.post("/api/create-order", ctx -> {
+            try {
+                CreateOrderRequest req = ctx.bodyAsClass(CreateOrderRequest.class);
+                String orderId = paymentService.createRazorpayOrder(req.getAmount());
+                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                response.put("id", orderId);
+                response.put("keyId", paymentService.getKeyId());
+                response.put("mock", paymentService.isMockMode());
+                ctx.status(201).json(response);
+            } catch (Exception e) {
+                ctx.status(400).result("Failed to create Razorpay Order: " + e.getMessage());
+            }
+        });
+
+        // 6. VERIFY RAZORPAY PAYMENT API
+        app.post("/api/verify-payment", ctx -> {
+            try {
+                PaymentVerificationRequest req = ctx.bodyAsClass(PaymentVerificationRequest.class);
+                boolean isValid = paymentService.verifySignature(
+                    req.getOrderId(),
+                    req.getPaymentId(),
+                    req.getSignature()
+                );
+
+                if (!isValid) {
+                    ctx.status(400).result("Payment Verification Failed: Invalid Signature");
+                    return;
+                }
+
+                // Complete Order Transaction
+                orderDAO.placeOrder(req.getOrder());
+                ctx.status(201).result("Payment Verified and Order Placed Successfully!");
+            } catch (Exception e) {
+                ctx.status(400).result("Out of Stock or Transaction Failed: " + e.getMessage());
+            }
+        });
+
         System.out.println(">>> Backend Server is LIVE at http://localhost:8000/api/products");
     }
 
@@ -187,6 +227,61 @@ public class Main {
         } catch (SQLException e) {
             System.err.println(">>> Database Check: Failed to initialize/verify database tables: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    public static class CreateOrderRequest {
+        private double amount;
+
+        public CreateOrderRequest() {}
+
+        public double getAmount() {
+            return amount;
+        }
+
+        public void setAmount(double amount) {
+            this.amount = amount;
+        }
+    }
+
+    public static class PaymentVerificationRequest {
+        private String orderId;
+        private String paymentId;
+        private String signature;
+        private Order order;
+
+        public PaymentVerificationRequest() {}
+
+        public String getOrderId() {
+            return orderId;
+        }
+
+        public void setOrderId(String orderId) {
+            this.orderId = orderId;
+        }
+
+        public String getPaymentId() {
+            return paymentId;
+        }
+
+        public void setPaymentId(String paymentId) {
+            this.paymentId = paymentId;
+        }
+
+        public String getSignature() {
+            return signature;
+        }
+
+        public void setSignature(String signature) {
+            this.signature = signature;
+        }
+
+        public Order getOrder() {
+            return order;
+        }
+
+        public void setOrder(Order order) {
+            this.order = order;
         }
     }
 }
