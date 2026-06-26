@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useAuth } from '../context/AuthContext';
-import { getCartItems } from '../services/api';
+import { getCartItems, processCheckout } from '../services/api';
+import { CheckCircle, AlertCircle, ShoppingBag, Loader2 } from 'lucide-react';
 
 /**
  * Cart Page - Shopping cart management
  * Features: Add/remove items, quantity control, checkout
  */
-const CartPage = ({ onNavigate }) => {
+const CartPage = ({ onNavigate, onCartChange }) => {
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(null);
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -65,6 +69,39 @@ const CartPage = ({ onNavigate }) => {
   const tax = subtotal * 0.05; // 5% tax
   const total = subtotal + tax;
 
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) return;
+    setCheckingOut(true);
+    setCheckoutError(null);
+    try {
+      const itemsPayload = cartItems.map(item => ({
+        userId: user.id,
+        productId: item.productId || item.product_id || item.id,
+        quantity: item.quantity,
+        price: item.price || item.discountedPrice || 0
+      }));
+
+      const orderPayload = {
+        userId: user.id,
+        totalAmount: total,
+        items: itemsPayload
+      };
+
+      await processCheckout(orderPayload);
+      
+      setCheckoutSuccess(true);
+      setCartItems([]);
+      if (onCartChange) {
+        onCartChange();
+      }
+    } catch (err) {
+      console.error('Checkout failed:', err);
+      setCheckoutError(err.message || 'Checkout failed. Please try again.');
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
   if (user?.role !== 'CUSTOMER') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
@@ -74,6 +111,45 @@ const CartPage = ({ onNavigate }) => {
           <p className="text-gray-500 mb-6 text-sm">
             Only customers are authorized to access the shopping cart workspace.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (checkoutSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-6 animate-fadeIn">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border border-gray-100 text-center transform scale-100 transition-all duration-300">
+          <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-100">
+            <CheckCircle className="w-10 h-10 text-emerald-600 animate-pulse" />
+          </div>
+          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-2">Order Placed Successfully!</h2>
+          <p className="text-emerald-700 font-semibold mb-4 bg-emerald-50 py-1.5 px-4 rounded-full inline-block text-xs border border-emerald-100">
+            Transaction Complete
+          </p>
+          <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+            Your payment was processed successfully. The inventory has been updated and the items will be dispatched soon.
+          </p>
+          
+          <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100 text-left animate-fadeIn">
+            <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-200/50">
+              <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Status</span>
+              <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">PAID</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Paid</span>
+              <span className="text-sm font-bold text-gray-800">₹{total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => onNavigate && onNavigate('home')}
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <ShoppingBag className="w-5 h-5" /> Continue Shopping
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -248,9 +324,32 @@ const CartPage = ({ onNavigate }) => {
                   <span className="font-bold text-green-600">₹{total.toFixed(2)}</span>
                 </div>
 
+                {/* Error Banner */}
+                {checkoutError && (
+                  <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3.5 rounded-lg flex items-start gap-2.5 animate-pulse">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="text-left">
+                      <p className="text-xs text-red-800 font-bold mb-0.5">Checkout Error</p>
+                      <p className="text-[11px] text-red-700 leading-normal">{checkoutError}</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Checkout Button */}
-                <button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3 rounded-lg hover:shadow-lg transition-shadow mb-3">
-                  💳 Proceed to Checkout
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkingOut || cartItems.length === 0}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3 rounded-lg hover:shadow-lg transition-shadow mb-3 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer text-center"
+                >
+                  {checkingOut ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" /> Processing Checkout...
+                    </>
+                  ) : (
+                    <>
+                      💳 Proceed to Checkout
+                    </>
+                  )}
                 </button>
 
                 {/* Continue Shopping */}
@@ -279,6 +378,7 @@ const CartPage = ({ onNavigate }) => {
 
 CartPage.propTypes = {
   onNavigate: PropTypes.func,
+  onCartChange: PropTypes.func,
 };
 
 export default CartPage;

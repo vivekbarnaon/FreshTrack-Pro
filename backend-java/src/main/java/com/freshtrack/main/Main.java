@@ -1,9 +1,11 @@
 package com.freshtrack.main;
 
 import com.freshtrack.dao.CartDAO;
+import com.freshtrack.dao.OrderDAO;
 import com.freshtrack.dao.ProductDAO;
 import com.freshtrack.dao.UserDAO;
 import com.freshtrack.model.CartItem;
+import com.freshtrack.model.Order;
 import com.freshtrack.model.Product;
 import com.freshtrack.model.User;
 import com.freshtrack.service.ExpiryService;
@@ -26,6 +28,7 @@ public class Main {
         ExpiryService service = new ExpiryService();
         UserDAO userDAO = new UserDAO();
         CartDAO cartDAO = new CartDAO();
+        OrderDAO orderDAO = new OrderDAO();
 
         ObjectMapper objectMapper = new ObjectMapper();
         JavaTimeModule timeModule = new JavaTimeModule();
@@ -131,7 +134,16 @@ public class Main {
             ctx.json(userCart);
         });
 
-
+        // 4. CHECKOUT API
+        app.post("/api/checkout", ctx -> {
+            try {
+                Order order = ctx.bodyAsClass(Order.class);
+                orderDAO.placeOrder(order);
+                ctx.status(201).result("Order Placed Successfully!");
+            } catch (Exception e) {
+                ctx.status(400).result("Out of Stock or Transaction Failed: " + e.getMessage());
+            }
+        });
 
         System.out.println(">>> Backend Server is LIVE at http://localhost:8000/api/products");
     }
@@ -150,6 +162,27 @@ public class Main {
                     ")";
             stmt.executeUpdate(createUsersTable);
             System.out.println(">>> Database Check: 'users' table check/creation complete.");
+
+            // Create orders table if it does not exist
+            String createOrdersTable = "CREATE TABLE IF NOT EXISTS orders (" +
+                    "id SERIAL PRIMARY KEY, " +
+                    "user_id INT REFERENCES users(id) ON DELETE CASCADE, " +
+                    "total_amount NUMERIC NOT NULL, " +
+                    "order_date TIMESTAMPTZ DEFAULT NOW()" +
+                    ")";
+            stmt.executeUpdate(createOrdersTable);
+            System.out.println(">>> Database Check: 'orders' table check/creation complete.");
+
+            // Create order_items table if it does not exist
+            String createOrderItemsTable = "CREATE TABLE IF NOT EXISTS order_items (" +
+                    "id SERIAL PRIMARY KEY, " +
+                    "order_id INT REFERENCES orders(id) ON DELETE CASCADE, " +
+                    "product_id INT REFERENCES inventory(id) ON DELETE CASCADE, " +
+                    "quantity INT NOT NULL, " +
+                    "price NUMERIC NOT NULL" +
+                    ")";
+            stmt.executeUpdate(createOrderItemsTable);
+            System.out.println(">>> Database Check: 'order_items' table check/creation complete.");
 
         } catch (SQLException e) {
             System.err.println(">>> Database Check: Failed to initialize/verify database tables: " + e.getMessage());
