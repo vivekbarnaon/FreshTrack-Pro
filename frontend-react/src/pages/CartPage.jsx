@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useAuth } from '../context/AuthContext';
-import { getCartItems, processCheckout } from '../services/api';
+import { getCartItems, processCheckout, createRazorpayOrder, verifyRazorpayPayment } from '../services/api';
 import { CheckCircle, AlertCircle, ShoppingBag, Loader2 } from 'lucide-react';
 
 /**
@@ -16,6 +16,8 @@ const CartPage = ({ onNavigate, onCartChange }) => {
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
+  const [showMockRazorpay, setShowMockRazorpay] = useState(false);
+  const [mockOrderDetails, setMockOrderDetails] = useState(null);
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -69,35 +71,117 @@ const CartPage = ({ onNavigate, onCartChange }) => {
   const tax = subtotal * 0.05; // 5% tax
   const total = subtotal + tax;
 
+  const handleConfirmMockPayment = async (success) => {
+    setShowMockRazorpay(false);
+    if (!success) {
+      setCheckoutError("Payment was cancelled/failed by the user.");
+      return;
+    }
+
+    setCheckingOut(true);
+    try {
+      const verificationPayload = {
+        orderId: mockOrderDetails.orderId,
+        paymentId: "pay_mock_" + Date.now(),
+        signature: "sig_mock_" + Date.now(),
+        order: mockOrderDetails.orderPayload
+      };
+
+      await verifyRazorpayPayment(verificationPayload);
+      setCheckoutSuccess(true);
+      setCartItems([]);
+      if (onCartChange) onCartChange();
+    } catch (err) {
+      setCheckoutError(err.message || "Mock payment verification failed.");
+    } finally {
+      setCheckingOut(false);
+      setMockOrderDetails(null);
+    }
+  };
+
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
     setCheckingOut(true);
     setCheckoutError(null);
     try {
-      const itemsPayload = cartItems.map(item => ({
-        userId: user.id,
-        productId: item.productId || item.product_id || item.id,
-        quantity: item.quantity,
-        price: item.price || item.discountedPrice || 0
-      }));
+      // 1. Create order on backend (returns Razorpay Order ID and key)
+      const res = await createRazorpayOrder(total);
 
       const orderPayload = {
         userId: user.id,
         totalAmount: total,
-        items: itemsPayload
+        items: cartItems.map(item => ({
+          userId: user.id,
+          productId: item.productId || item.product_id || item.id,
+          quantity: item.quantity,
+          price: item.price || item.discountedPrice || 0
+        }))
       };
 
-      await processCheckout(orderPayload);
-      
-      setCheckoutSuccess(true);
-      setCartItems([]);
-      if (onCartChange) {
-        onCartChange();
+      if (res.mock) {
+        // If mock mode is active, trigger our custom mock payment popup
+        setMockOrderDetails({
+          orderId: res.id,
+          keyId: res.keyId,
+          orderPayload: orderPayload
+        });
+        setShowMockRazorpay(true);
+        setCheckingOut(false);
+        return;
       }
+
+      // 2. Open official Razorpay modal
+      const options = {
+        key: res.keyId,
+        amount: Math.round(total * 100),
+        currency: "INR",
+        name: "FreshTrack Pro",
+        description: "FreshTrack Pro Order Checkout",
+        order_id: res.id,
+        handler: async function (response) {
+          try {
+            setCheckingOut(true);
+            const verificationPayload = {
+              orderId: res.id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+              order: orderPayload
+            };
+
+            await verifyRazorpayPayment(verificationPayload);
+            setCheckoutSuccess(true);
+            setCartItems([]);
+            if (onCartChange) onCartChange();
+          } catch (err) {
+            setCheckoutError(err.message || "Payment verification failed.");
+          } finally {
+            setCheckingOut(false);
+          }
+        },
+        prefill: {
+          name: user.username || "Customer Name",
+          email: user.email || "customer@example.com",
+        },
+        theme: {
+          color: "#10b981",
+        },
+        modal: {
+          ondismiss: function() {
+            setCheckingOut(false);
+          }
+        }
+      };
+
+      if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        throw new Error("Razorpay SDK failed to load. Please refresh the page.");
+      }
+
     } catch (err) {
       console.error('Checkout failed:', err);
       setCheckoutError(err.message || 'Checkout failed. Please try again.');
-    } finally {
       setCheckingOut(false);
     }
   };
@@ -370,6 +454,69 @@ const CartPage = ({ onNavigate, onCartChange }) => {
               </div>
             </div>
           )}
+      {/* Mock Razorpay Payment Dialog */}
+      {showMockRazorpay && mockOrderDetails && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-gray-100 animate-scaleUp">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-6 text-center relative">
+              <button 
+                type="button" 
+                className="absolute top-4 right-4 text-white/70 hover:text-white cursor-pointer text-lg font-bold bg-transparent border-0" 
+                onClick={() => handleConfirmMockPayment(false)}
+              >
+                ✕
+              </button>
+              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-2xl">💳</span>
+              </div>
+              <h3 className="text-xl font-extrabold tracking-tight">Razorpay Checkout</h3>
+              <p className="text-xs text-emerald-100 font-semibold tracking-wider uppercase mt-1">Demo Mode</p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between items-center text-sm border-b pb-2 border-gray-100">
+                  <span className="text-gray-400 font-medium">Order ID</span>
+                  <span className="font-mono text-xs text-gray-700 font-semibold bg-gray-100 px-2.5 py-0.5 rounded text-center">{mockOrderDetails.orderId}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm border-b pb-2 border-gray-100">
+                  <span className="text-gray-400 font-medium">Recipient</span>
+                  <span className="text-gray-700 font-bold">FreshTrack Pro Ltd.</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 font-medium text-sm">Amount to Pay</span>
+                  <span className="text-xl font-black text-emerald-600">₹{total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => handleConfirmMockPayment(true)}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-3.5 px-6 rounded-xl hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  ✅ Authorize Success Payment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmMockPayment(false)}
+                  className="w-full bg-red-50 text-red-600 hover:bg-red-100 font-bold py-2.5 px-6 rounded-xl transition-all duration-300 cursor-pointer"
+                >
+                  ❌ Cancel / Fail Payment
+                </button>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 px-6 py-4 text-center border-t border-gray-100">
+              <p className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase">🔒 Secured by Razorpay emulation</p>
+            </div>
+          </div>
+        </div>
+      )}
         </div>
       </div>
     </div>
