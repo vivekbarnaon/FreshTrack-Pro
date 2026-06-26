@@ -45,4 +45,18 @@ public class UserDAO {
         }
         return null;
     }
+
+    public void updateUserProfile(int userId, String username, String email) {
+        String sql = "UPDATE users SET username = ?, email = ? WHERE id = ?";
+        try (Connection conn = DBConfig.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            pstmt.setString(2, email);
+            pstmt.setInt(3, userId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Database error during profile update: " + e.getMessage(), e);
+        }
+    }
 }

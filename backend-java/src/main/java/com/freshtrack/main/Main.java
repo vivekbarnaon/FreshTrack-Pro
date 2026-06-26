@@ -185,6 +185,60 @@ public class Main {
             }
         });
 
+        // 7. ADMIN ANALYTICS API
+        app.get("/api/admin/analytics", ctx -> {
+            try {
+                int earlyDays = dao.getSetting("early_discount_days", 5);
+                java.util.Map<String, Object> stats = new java.util.HashMap<>();
+                stats.put("totalRevenue", dao.getTotalRevenue());
+                stats.put("totalProducts", dao.getTotalProductsCount());
+                stats.put("expiringSoon", dao.getExpiringSoonCount(earlyDays));
+                stats.put("outOfStock", dao.getOutOfStockCount());
+                stats.put("categoryStats", dao.getProductsCountByCategory());
+                ctx.json(stats);
+            } catch (Exception e) {
+                ctx.status(500).result("Failed to retrieve analytics: " + e.getMessage());
+            }
+        });
+
+        // 8. GET ADMIN SETTINGS API
+        app.get("/api/admin/settings", ctx -> {
+            try {
+                int early = dao.getSetting("early_discount_days", 5);
+                int critical = dao.getSetting("critical_discount_days", 2);
+                java.util.Map<String, Object> settings = new java.util.HashMap<>();
+                settings.put("earlyDiscountDays", early);
+                settings.put("criticalDiscountDays", critical);
+                ctx.json(settings);
+            } catch (Exception e) {
+                ctx.status(500).result("Failed to retrieve settings: " + e.getMessage());
+            }
+        });
+
+        // 9. POST ADMIN SETTINGS API
+        app.post("/api/admin/settings", ctx -> {
+            try {
+                SettingsRequest req = ctx.bodyAsClass(SettingsRequest.class);
+                dao.updateSetting("early_discount_days", String.valueOf(req.getEarlyDiscountDays()));
+                dao.updateSetting("critical_discount_days", String.valueOf(req.getCriticalDiscountDays()));
+                ctx.status(200).result("Settings saved successfully");
+            } catch (Exception e) {
+                ctx.status(400).result("Failed to update settings: " + e.getMessage());
+            }
+        });
+
+        // 10. PUT ADMIN PROFILE API
+        app.put("/api/admin/profile/{userId}", ctx -> {
+            try {
+                int userId = Integer.parseInt(ctx.pathParam("userId"));
+                ProfileRequest req = ctx.bodyAsClass(ProfileRequest.class);
+                userDAO.updateUserProfile(userId, req.getUsername(), req.getEmail());
+                ctx.status(200).result("Profile updated successfully");
+            } catch (Exception e) {
+                ctx.status(400).result("Failed to update profile: " + e.getMessage());
+            }
+        });
+
         System.out.println(">>> Backend Server is LIVE at http://localhost:8000/api/products");
     }
 
@@ -223,6 +277,21 @@ public class Main {
                     ")";
             stmt.executeUpdate(createOrderItemsTable);
             System.out.println(">>> Database Check: 'order_items' table check/creation complete.");
+
+            // Create settings table if it does not exist
+            String createSettingsTable = "CREATE TABLE IF NOT EXISTS settings (" +
+                    "key VARCHAR(100) PRIMARY KEY, " +
+                    "value VARCHAR(100) NOT NULL" +
+                    ")";
+            stmt.executeUpdate(createSettingsTable);
+
+            // Seed settings table with default values if empty
+            String seedSettings = "INSERT INTO settings (key, value) VALUES " +
+                    "('early_discount_days', '5'), " +
+                    "('critical_discount_days', '2') " +
+                    "ON CONFLICT (key) DO NOTHING";
+            stmt.executeUpdate(seedSettings);
+            System.out.println(">>> Database Check: 'settings' table check/creation complete.");
 
         } catch (SQLException e) {
             System.err.println(">>> Database Check: Failed to initialize/verify database tables: " + e.getMessage());
@@ -282,6 +351,52 @@ public class Main {
 
         public void setOrder(Order order) {
             this.order = order;
+        }
+    }
+
+    public static class SettingsRequest {
+        private int earlyDiscountDays;
+        private int criticalDiscountDays;
+
+        public SettingsRequest() {}
+
+        public int getEarlyDiscountDays() {
+            return earlyDiscountDays;
+        }
+
+        public void setEarlyDiscountDays(int earlyDiscountDays) {
+            this.earlyDiscountDays = earlyDiscountDays;
+        }
+
+        public int getCriticalDiscountDays() {
+            return criticalDiscountDays;
+        }
+
+        public void setCriticalDiscountDays(int criticalDiscountDays) {
+            this.criticalDiscountDays = criticalDiscountDays;
+        }
+    }
+
+    public static class ProfileRequest {
+        private String username;
+        private String email;
+
+        public ProfileRequest() {}
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
         }
     }
 }

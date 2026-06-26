@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Dashboard from './pages/Dashboard';
 import InventoryPage from './pages/InventoryPage';
 import CartPage from './pages/CartPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import SettingsPage from './pages/SettingsPage';
 import Header from './components/common/Header';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './context/AuthContext';
@@ -37,7 +39,7 @@ function App() {
   // Redirect if unauthorized page navigation occurs
   useEffect(() => {
     if (user) {
-      if (user.role === 'CUSTOMER' && (currentPage === 'inventory' || currentPage === 'analytics')) {
+      if (user.role === 'CUSTOMER' && (currentPage === 'inventory' || currentPage === 'analytics' || currentPage === 'settings')) {
         setCurrentPage('home');
       } else if (user.role === 'ADMIN' && currentPage === 'cart') {
         setCurrentPage('home');
@@ -69,6 +71,10 @@ function App() {
         return user.role === 'ADMIN' ? <InventoryPage /> : <Dashboard onNavigate={setCurrentPage} onCartChange={fetchCartCount} />;
       case 'cart':
         return user.role === 'CUSTOMER' ? <CartPage onNavigate={setCurrentPage} onCartChange={fetchCartCount} /> : <Dashboard onNavigate={setCurrentPage} onCartChange={fetchCartCount} />;
+      case 'analytics':
+        return user.role === 'ADMIN' ? <AnalyticsPage /> : <Dashboard onNavigate={setCurrentPage} onCartChange={fetchCartCount} />;
+      case 'settings':
+        return user.role === 'ADMIN' ? <SettingsPage /> : <Dashboard onNavigate={setCurrentPage} onCartChange={fetchCartCount} />;
       default:
         return <Dashboard onNavigate={setCurrentPage} onCartChange={fetchCartCount} />;
     }

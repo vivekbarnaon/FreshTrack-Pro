@@ -241,5 +241,68 @@ export const verifyRazorpayPayment = async (verificationData) => {
   }
 };
 
+/**
+ * Fetch Admin Analytics Stats
+ * @returns {Promise} Analytics stats { totalRevenue, totalProducts, expiringSoon, outOfStock, categoryStats }
+ */
+export const getAdminAnalytics = async () => {
+  try {
+    const response = await api.get('/admin/analytics');
+    return response.data;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error('Failed to fetch admin analytics:', message);
+    throw new Error(message);
+  }
+};
+
+/**
+ * Fetch Admin Settings
+ * @returns {Promise} Settings { earlyDiscountDays, criticalDiscountDays }
+ */
+export const getAdminSettings = async () => {
+  try {
+    const response = await api.get('/admin/settings');
+    return response.data;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error('Failed to fetch settings:', message);
+    throw new Error(message);
+  }
+};
+
+/**
+ * Update Admin Settings
+ * @param {Object} settingsData - { earlyDiscountDays, criticalDiscountDays }
+ * @returns {Promise}
+ */
+export const updateAdminSettings = async (settingsData) => {
+  try {
+    const response = await api.post('/admin/settings', settingsData);
+    return response.data;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error('Failed to save settings:', message);
+    throw new Error(message);
+  }
+};
+
+/**
+ * Update User/Admin Profile
+ * @param {number} userId
+ * @param {Object} profileData - { username, email }
+ * @returns {Promise}
+ */
+export const updateAdminProfile = async (userId, profileData) => {
+  try {
+    const response = await api.put(`/admin/profile/${userId}`, profileData);
+    return response.data;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error(`Failed to update profile for user ${userId}:`, message);
+    throw new Error(message);
+  }
+};
+
 export default api;
 
