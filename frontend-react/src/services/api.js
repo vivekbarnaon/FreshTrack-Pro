@@ -193,5 +193,21 @@ export const getCartItems = async (userId) => {
   }
 };
 
+/**
+ * Process order checkout
+ * @param {Object} orderData - { userId, totalAmount, items }
+ * @returns {Promise} Response from server
+ */
+export const processCheckout = async (orderData) => {
+  try {
+    const response = await api.post('/checkout', orderData);
+    return response.data;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error('Checkout failed:', message);
+    throw new Error(message);
+  }
+};
+
 export default api;
 

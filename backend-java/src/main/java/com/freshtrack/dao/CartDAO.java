@@ -30,6 +30,8 @@ public class CartDAO {
             while (rs.next()) {
                 CartItem item = new CartItem();
                 item.setId(rs.getInt("id"));
+                item.setUserId(rs.getInt("user_id"));
+                item.setProductId(rs.getInt("product_id"));
                 item.setProductName(rs.getString("name"));
                 item.setPrice(rs.getDouble("discounted_price"));
                 item.setQuantity(rs.getInt("quantity"));
